@@ -1,6 +1,5 @@
 'use client'
 
-import Link from 'next/link'
 import { useEffect, useState } from 'react'
 import { useFeatureFlagEnabled, usePostHog } from 'posthog-js/react'
 
@@ -49,13 +48,6 @@ export default function Content({ flags }: { flags: Record<string, string | bool
                     >
                         Set user properties
                     </button>
-                </div>
-
-                <div className="buttons">
-                    <Link href="/animations">Animations</Link>
-                    <Link href="/iframe">Iframe</Link>
-                    <Link href="/media">Media</Link>
-                    <Link href="/long">Long</Link>
                 </div>
 
                 <p>

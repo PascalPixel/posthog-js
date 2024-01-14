@@ -3,6 +3,7 @@
 First, run the development server:
 
 ```bash
+yarn
 NEXT_PUBLIC_POSTHOG_KEY='<your-local-api-key>' yarn dev
 ```
 

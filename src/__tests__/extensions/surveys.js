@@ -1,4 +1,6 @@
-import { createShadow, callSurveys, generateSurveys, createMultipleQuestionSurvey } from '../../extensions/surveys'
+import { createShadow, callSurveys, generateSurveys } from '../../extensions/surveys'
+import { SurveyType } from '../../posthog-surveys-types'
+import { createMultipleQuestionSurvey, createRatingsPopup } from '../../extensions/surveys/surveys-utils'
 
 describe('survey display logic', () => {
     beforeEach(() => {
@@ -19,6 +21,7 @@ describe('survey display logic', () => {
         {
             id: 'testSurvey1',
             name: 'Test survey 1',
+            type: SurveyType.Popover,
             appearance: null,
             questions: [
                 {
@@ -59,6 +62,9 @@ describe('survey display logic', () => {
             $survey_id: 'testSurvey1',
             $survey_name: 'Test survey 1',
             sessionRecordingUrl: undefined,
+            $set: {
+                '$survey_dismissed/testSurvey1': true,
+            },
         })
         expect(localStorage.getItem(`seenSurvey_${mockSurveys[0].id}`)).toBe('true')
 
@@ -96,6 +102,9 @@ describe('survey display logic', () => {
             $survey_question: 'How satisfied are you with our newest product?',
             $survey_response: 1,
             sessionRecordingUrl: undefined,
+            $set: {
+                '$survey_responded/testSurvey1': true,
+            },
         })
         expect(localStorage.getItem(`seenSurvey_${mockSurveys[0].id}`)).toBe('true')
 
@@ -112,6 +121,7 @@ describe('survey display logic', () => {
             {
                 id: 'testSurvey2',
                 name: 'Test survey 2',
+                type: SurveyType.Popover,
                 appearance: null,
                 conditions: { seenSurveyWaitPeriodInDays: 10 },
                 questions: [
@@ -145,12 +155,16 @@ describe('survey display logic', () => {
         expect(mockPostHog.capture).toBeCalledTimes(1)
     })
 
-    test('when url changes, callSurveys runs again', () => {
+    test('callSurveys runs on interval irrespective of url change', () => {
         jest.useFakeTimers()
         jest.spyOn(global, 'setInterval')
         generateSurveys(mockPostHog)
         expect(mockPostHog.getActiveMatchingSurveys).toBeCalledTimes(1)
-        expect(setInterval).toHaveBeenLastCalledWith(expect.any(Function), 1500)
+        expect(setInterval).toHaveBeenLastCalledWith(expect.any(Function), 3000)
+
+        jest.advanceTimersByTime(3000)
+        expect(mockPostHog.getActiveMatchingSurveys).toBeCalledTimes(2)
+        expect(setInterval).toHaveBeenLastCalledWith(expect.any(Function), 3000)
     })
 
     test('multiple choice type question elements are unique', () => {
@@ -158,6 +172,7 @@ describe('survey display logic', () => {
             {
                 id: 'testSurvey2',
                 name: 'Test survey 2',
+                type: SurveyType.Popover,
                 appearance: null,
                 conditions: { seenSurveyWaitPeriodInDays: 10 },
                 questions: [
@@ -183,5 +198,304 @@ describe('survey display logic', () => {
             uniqueIds.add(element.id)
         })
         expect(uniqueIds.size).toBe(allSelectOptions.length)
+    })
+
+    test('single choice question type radio input elements are grouped correctly by question index', () => {
+        mockSurveys = [
+            {
+                id: 'testSurvey2',
+                name: 'Test survey 2',
+                type: SurveyType.Popover,
+                appearance: null,
+                questions: [
+                    {
+                        question: 'Which types of content would you like to see more of?',
+                        description: 'This is a question description',
+                        type: 'single_choice',
+                        choices: ['Tutorials', 'Product Updates', 'Events', 'Other'],
+                    },
+                    {
+                        question: 'Which features do you use the most?',
+                        description: 'This is a question description',
+                        type: 'single_choice',
+                        choices: ['Surveys', 'Feature flags', 'Analytics'],
+                    },
+                ],
+            },
+        ]
+        const multipleQuestionSurveyForm = createMultipleQuestionSurvey(mockPostHog, mockSurveys[0])
+        const firstQuestionRadioInputs = multipleQuestionSurveyForm
+            .querySelectorAll('.tab.question-0')[0]
+            .querySelectorAll('input[type=radio]')
+        const mappedInputNames1 = [...firstQuestionRadioInputs].map((input) => input.name)
+        expect(mappedInputNames1.every((name) => name === 'question0')).toBe(true)
+        const secondQuestionRadioInputs = multipleQuestionSurveyForm
+            .querySelectorAll('.tab.question-1')[0]
+            .querySelectorAll('input[type=radio]')
+        const mappedInputNames2 = [...secondQuestionRadioInputs].map((input) => input.name)
+        expect(mappedInputNames2.every((name) => name === 'question1')).toBe(true)
+    })
+
+    test('rating questions that are on the 10 scale start at 0', () => {
+        mockSurveys = [
+            {
+                id: 'testSurvey2',
+                name: 'Test survey 2',
+                type: SurveyType.Popover,
+                appearance: null,
+                questions: [
+                    {
+                        question: 'How satisfied are you with our newest product?',
+                        description: 'This is a question description',
+                        type: 'rating',
+                        display: 'number',
+                        scale: 10,
+                        lower_bound_label: 'Not Satisfied',
+                        upper_bound_label: 'Very Satisfied',
+                    },
+                ],
+            },
+            {
+                id: 'testSurvey3',
+                name: 'Test survey 3',
+                type: SurveyType.Popover,
+                appearance: null,
+                questions: [
+                    {
+                        question: 'How satisfied are you with our newest product?',
+                        description: 'This is a question description',
+                        type: 'rating',
+                        display: 'emoji',
+                        scale: 3,
+                        lower_bound_label: 'Not Satisfied',
+                        upper_bound_label: 'Very Satisfied',
+                    },
+                ],
+            },
+        ]
+        const ratingQuestion = createRatingsPopup(mockPostHog, mockSurveys[0], mockSurveys[0].questions[0], 0)
+        expect(ratingQuestion.querySelectorAll('.question-0-rating-0').length).toBe(1)
+
+        // expect the first value of the rating buttons to be 1 for other scales
+        const ratingQuestion2 = createRatingsPopup(mockPostHog, mockSurveys[1], mockSurveys[1].questions[0], 0)
+        expect(ratingQuestion2.querySelectorAll('.question-0-rating-0').length).toBe(0)
+        expect(ratingQuestion2.querySelectorAll('.question-0-rating-1').length).toBe(1)
+    })
+
+    test('open choice value on a multiple choice question is determined by a text input', () => {
+        mockSurveys = [
+            {
+                id: 'testSurvey2',
+                name: 'Test survey 2',
+                type: SurveyType.Popover,
+                appearance: null,
+                questions: [
+                    {
+                        question: 'Which types of content would you like to see more of?',
+                        description: 'This is a question description',
+                        type: 'multiple_choice',
+                        choices: ['Tutorials', 'Product Updates', 'Events', 'Other'],
+                        hasOpenChoice: true,
+                    },
+                ],
+            },
+        ]
+        const singleQuestionSurveyForm = createMultipleQuestionSurvey(mockPostHog, mockSurveys[0])
+
+        const checkboxInputs = singleQuestionSurveyForm
+            .querySelector('.tab.question-0')
+            .querySelectorAll('input[type=checkbox]')
+        let checkboxInputValues = [...checkboxInputs].map((input) => input.value)
+        expect(checkboxInputValues).toEqual(['Tutorials', 'Product Updates', 'Events', ''])
+        const openChoiceTextInput = singleQuestionSurveyForm
+            .querySelector('.tab.question-0')
+            .querySelector('input[type=text]')
+        openChoiceTextInput.value = 'NEW VALUE 1'
+        openChoiceTextInput.dispatchEvent(new Event('input'))
+        expect(singleQuestionSurveyForm.querySelector('.form-submit').disabled).toEqual(false)
+        checkboxInputValues = [...checkboxInputs].map((input) => input.value)
+        expect(checkboxInputValues).toEqual(['Tutorials', 'Product Updates', 'Events', 'NEW VALUE 1'])
+        checkboxInputs[0].click()
+        const checkboxInputsChecked = [...checkboxInputs].map((input) => input.checked)
+        expect(checkboxInputsChecked).toEqual([true, false, false, true])
+
+        singleQuestionSurveyForm.dispatchEvent(new Event('submit'))
+        expect(mockPostHog.capture).toBeCalledTimes(1)
+        expect(mockPostHog.capture).toBeCalledWith('survey sent', {
+            $survey_name: 'Test survey 2',
+            $survey_id: 'testSurvey2',
+            $survey_questions: ['Which types of content would you like to see more of?'],
+            $survey_response: ['Tutorials', 'NEW VALUE 1'],
+            sessionRecordingUrl: undefined,
+            $set: {
+                ['$survey_responded/testSurvey2']: true,
+            },
+        })
+    })
+
+    test('open choice value on a single choice question is determined by a text input', () => {
+        mockSurveys = [
+            {
+                id: 'testSurvey2',
+                name: 'Test survey 2',
+                type: SurveyType.Popover,
+                appearance: null,
+                questions: [
+                    {
+                        question: 'Which features do you use the most?',
+                        description: 'This is a question description',
+                        type: 'single_choice',
+                        choices: ['Surveys', 'Feature flags', 'Analytics', 'Another Feature'],
+                        hasOpenChoice: true,
+                    },
+                ],
+            },
+        ]
+        const singleQuestionSurveyForm = createMultipleQuestionSurvey(mockPostHog, mockSurveys[0])
+
+        const radioInputs = singleQuestionSurveyForm
+            .querySelector('.tab.question-0')
+            .querySelectorAll('input[type=radio]')
+        let radioInputValues = [...radioInputs].map((input) => input.value)
+        expect(radioInputValues).toEqual(['Surveys', 'Feature flags', 'Analytics', ''])
+        const openChoiceTextInput = singleQuestionSurveyForm
+            .querySelector('.tab.question-0')
+            .querySelector('input[type=text]')
+        openChoiceTextInput.value = 'NEW VALUE 2'
+        openChoiceTextInput.dispatchEvent(new Event('input'))
+        expect(singleQuestionSurveyForm.querySelector('.form-submit').disabled).toEqual(false)
+        radioInputValues = [...radioInputs].map((input) => input.value)
+        expect(radioInputValues).toEqual(['Surveys', 'Feature flags', 'Analytics', 'NEW VALUE 2'])
+        const radioInputsChecked = [...radioInputs].map((input) => input.checked)
+        expect(radioInputsChecked).toEqual([false, false, false, true])
+
+        singleQuestionSurveyForm.dispatchEvent(new Event('submit'))
+        expect(mockPostHog.capture).toBeCalledTimes(1)
+        expect(mockPostHog.capture).toBeCalledWith('survey sent', {
+            $survey_name: 'Test survey 2',
+            $survey_id: 'testSurvey2',
+            $survey_questions: ['Which features do you use the most?'],
+            $survey_response: 'NEW VALUE 2',
+            sessionRecordingUrl: undefined,
+            $set: {
+                ['$survey_responded/testSurvey2']: true,
+            },
+        })
+    })
+})
+
+describe('survey widget', () => {
+    beforeEach(() => {
+        // we have to manually reset the DOM before each test
+        document.getElementsByTagName('html')[0].innerHTML = ''
+        localStorage.clear()
+        jest.clearAllMocks()
+    })
+
+    let mockSurveys = [
+        {
+            id: 'testWidget1',
+            name: 'Test widget 1',
+            type: SurveyType.Widget,
+            appearance: { widgetType: 'tab' },
+            questions: [
+                {
+                    question: 'How satisfied are you with our newest product?',
+                    description: 'This is a question description',
+                    type: 'rating',
+                    display: 'number',
+                    scale: 10,
+                    lower_bound_label: 'Not Satisfied',
+                    upper_bound_label: 'Very Satisfied',
+                },
+            ],
+        },
+        {
+            id: 'testWidget2',
+            name: 'Test widget 2',
+            type: SurveyType.Widget,
+            appearance: { widgetType: 'tab' },
+            questions: [
+                {
+                    question: 'How satisfied are you with our newest product?',
+                    description: 'This is a question description',
+                    type: 'rating',
+                    display: 'emoji',
+                    scale: 3,
+                    lower_bound_label: 'Not Satisfied',
+                    upper_bound_label: 'Very Satisfied',
+                },
+            ],
+        },
+    ]
+    const mockPostHog = {
+        getActiveMatchingSurveys: jest.fn().mockImplementation((callback) => callback(mockSurveys)),
+        get_session_replay_url: jest.fn(),
+        capture: jest.fn().mockImplementation((eventName) => eventName),
+    }
+
+    test('there can be multiple widgets on the same page as long as they are unique', () => {
+        callSurveys(mockPostHog, false)
+        const widget = document
+            .getElementsByClassName(`PostHogWidget${mockSurveys[0].id}`)[0]
+            .shadowRoot.querySelectorAll('.ph-survey-widget-tab')
+        expect(widget.length).toEqual(1)
+        expect(document.querySelectorAll("div[class^='PostHogWidget']").length).toEqual(2)
+        callSurveys(mockPostHog, false)
+        expect(document.querySelectorAll("div[class^='PostHogWidget']").length).toEqual(2)
+    })
+
+    test('tab type widgets show and close the survey when clicked', () => {
+        mockSurveys.pop()
+        callSurveys(mockPostHog, false)
+        const shadow = document.getElementsByClassName(`PostHogWidget${mockSurveys[0].id}`)[0].shadowRoot
+        const widget = shadow.querySelectorAll('.ph-survey-widget-tab')
+        widget[0].click()
+        const survey = shadow.querySelectorAll(`.survey-${mockSurveys[0].id}-form`)[0]
+        expect(survey.style.display).toEqual('block')
+        widget[0].click()
+        expect(survey.style.display).toEqual('none')
+    })
+
+    test('selector type widget can only display the survey when the selector is present on the page', () => {
+        mockSurveys = [
+            {
+                id: 'testWidget3',
+                name: 'Test widget 3',
+                type: SurveyType.Widget,
+                appearance: { widgetType: 'selector', widgetSelector: '.user-widget-button' },
+                questions: [
+                    {
+                        question: 'How satisfied are you with our newest product?',
+                        description: 'This is a question description',
+                        type: 'rating',
+                        display: 'emoji',
+                        scale: 3,
+                        lower_bound_label: 'Not Satisfied',
+                        upper_bound_label: 'Very Satisfied',
+                    },
+                ],
+            },
+        ]
+        callSurveys(mockPostHog, false)
+        expect(document.getElementsByClassName(`PostHogWidget${mockSurveys[0].id}`).length).toEqual(0)
+        const button = document.createElement('button')
+        button.className = 'user-widget-button'
+        document.body.appendChild(button)
+        callSurveys(mockPostHog, false)
+        expect(document.getElementsByClassName(`PostHogWidget${mockSurveys[0].id}`).length).toEqual(1)
+        // widget should only be created once
+        callSurveys(mockPostHog, false)
+        expect(document.getElementsByClassName(`PostHogWidget${mockSurveys[0].id}`).length).toEqual(1)
+        // expect survey style display to be none initially
+        const shadow = document.getElementsByClassName(`PostHogWidget${mockSurveys[0].id}`)[0].shadowRoot
+        const survey = shadow.querySelectorAll(`.survey-testWidget3-form`)[0]
+        expect(survey.style.display).toEqual('none')
+
+        // click on the button to show the survey test
+        button.click()
+        expect(survey.style.display).toEqual('block')
+        survey.querySelectorAll('.form-cancel')[0].click()
+        expect(survey.style.display).toEqual('none')
     })
 })

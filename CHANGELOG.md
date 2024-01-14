@@ -1,3 +1,249 @@
+## 1.98.2 - 2024-01-11
+
+- fix: Don't allow us.posthog.com to be used (#957)
+
+## 1.98.1 - 2024-01-11
+
+- fix: set the session id as soon as it changes (#956)
+- fix: simplify test setup (#955)
+
+## 1.98.0 - 2024-01-10
+
+- feat: capture session options in a custom event (#954)
+
+## 1.97.1 - 2024-01-09
+
+- fix(surveys): fix feedback widget bugs (#953)
+
+## 1.97.0 - 2024-01-09
+
+- fix: add a comment explaining browser type prop (#952)
+- feat: add opt_out_useragent_filter and $browser_type (#949)
+- chore(surveys): add basic survey e2e tests (#948)
+- Tidying and removing of old value (#941)
+
+## 1.96.1 - 2023-12-15
+
+- Add gas_source to campaign params (#934)
+- feat: simplify payload config compared to rrweb proposal (#939)
+- feat: remove given from another test file (#940)
+
+## 1.96.0 - 2023-12-14
+
+- make link survey link optional (#938)
+- fix: import nuxt composables from #imports (#879)
+
+## 1.95.1 - 2023-12-13
+
+- Remove debug code from survey-utils (#937)
+
+## 1.95.0 - 2023-12-12
+
+- feat(surveys): custom and tab widget (#933)
+
+## 1.94.4 - 2023-12-12
+
+- Add a few more blocked uas (#936)
+
+## 1.94.3 - 2023-12-12
+
+- fix: class string separator (#935)
+
+## 1.94.2 - 2023-12-11
+
+- fix: cache subdomain discovery (#928)
+- chore: corrects the changelog (#931)
+
+## 1.94.1 - 2023-12-09
+
+- fix: incorrect localhost handling (#930) 
+
+## 1.94.0 - 2023-12-08
+
+- feat: Swap to localstorage+cookie as default (#927)
+- fix: sanitize class string more (#925) 
+- chore: redirect users to the supportModal when implementation errors occur (#921)
+- chore: Add comment to remind about updating the plugin-server (#924)
+- add wbraid and gbraid to campaignParams (#923)
+
+## 1.93.6 - 2023-12-05
+
+- fix: Sanitize given api_host urls to not have a trailing slash (#920)
+
+## 1.93.5 - 2023-12-05
+
+- fix: handle newlines in classnames (#919)
+
+## 1.93.4 - 2023-12-05
+
+- feat: Show warning if identifying with "distinct_id" (#918)
+
+## 1.93.3 - 2023-11-28
+
+- fix: safer custom event on return from idle (#913)
+- Add deprecation notice for disable_cookie (#912)
+
+## 1.93.2 - 2023-11-23
+
+- fix(flags): Make sure we don't override flags when decide is disabled (#911)
+
+## 1.93.1 - 2023-11-23
+
+- feat: send idle markers in session (#909)
+
+## 1.93.0 - 2023-11-22
+
+- feat(surveys): Add open-ended choices for multiple and single choice surveys (#910)
+
+## 1.92.1 - 2023-11-21
+
+- feat: payload capture - move timing into copied plugin (#902)
+
+## 1.92.0 - 2023-11-20
+
+- feat: Create elements chain string as we store it (#823)
+- Move blocked UAs to own file (#905)
+- chore: deflake a test (#904)
+- chore: convert more tests to TS (#903)
+- latest cypress action version (#900)
+
+## 1.91.1 - 2023-11-15
+
+- fix(surveys): button text field fix (#899)
+
+## 1.91.0 - 2023-11-15
+
+- fix: Window or document access across the code (#894)
+
+## 1.90.2 - 2023-11-15
+
+- chore: uniquify differently (#897)
+- correct CHANGELOG.md (#896)
+
+## 1.90.1 - 2023-11-15
+
+- fix: seek subdomain correctly (#888)
+- fix: merge server permissions for payload capture (#892)
+
+## 1.90.0 - 2023-11-15
+
+- fix(surveys): prioritize question button text field and thank you countdown is not automatic (#893)
+
+## 1.89.2 - 2023-11-14
+
+- fix: a little session buffering logic (#890)
+- fix: make header comparison case insensitive (#891)
+- fix: extend header denylist (#889)
+
+## 1.89.1 - 2023-11-13
+
+- fix(surveys): fix emoji rating scale bug (#887)
+- feat: capture network payloads (internal alpha) (#886)
+- fix: meaningful recordings integration tests (#885)
+- fix(surveys): Send responded property with every type of survey (#883)
+- Bump playground next yarn version (#874)
+- chore: convert 2 more test files to remove given and switch to TS (#882)
+- fix(surveys): whitelabel, input radio grouping, and auto text color bugs (#881)
+- fix: session id should start null (#878)
+- chore(deps): bump @babel/traverse from 7.11.0 to 7.23.2 (#835)
+- chore(deps): bump @babel/traverse from 7.12.12 to 7.23.2 in /react (#836)
+- chore(deps): bump next from 13.1.6 to 13.5.0 in /playground/nextjs (#855)
+
+## 1.89.0 - 2023-11-13
+
+- feat: capture network payloads (internal alpha) (#886)
+- fix: meaningful recordings integration tests (#885)
+
+## 1.88.4 - 2023-11-09
+
+- fix(surveys): Send responded property with every type of survey (#883)
+- Bump playground next yarn version (#874)
+- chore: convert 2 more test files to remove given and switch to TS (#882)
+
+## 1.88.3 - 2023-11-08
+
+- fix(surveys): whitelabel, input radio grouping, and auto text color bugs (#881)
+
+## 1.88.2 - 2023-11-08
+
+- fix: session id should start null (#878)
+- chore(deps): bump @babel/traverse from 7.11.0 to 7.23.2 (#835)
+- chore(deps): bump @babel/traverse from 7.12.12 to 7.23.2 in /react (#836)
+
+## 1.88.1 - 2023-11-02
+
+- chore(deps): bump next from 13.1.6 to 13.5.0 in /playground/nextjs (#855)
+- Tweak session prop names (#873)
+
+## 1.88.0 - 2023-11-02
+
+- feat(web-analytics): Add client-side session params (#869)
+
+## 1.87.6 - 2023-10-31
+
+- fix: add tests for browser and browser version detection (#870)
+
+## 1.87.5 - 2023-10-30
+
+- fix: include raw user agent in event properties (#868)
+
+## 1.87.4 - 2023-10-30
+
+- fix: logging pointless error when offline (#866)
+
+## 1.87.3 - 2023-10-30
+
+- feat: retry count in url (#864)
+
+## 1.87.2 - 2023-10-27
+
+- fix(surveys): Publish types in module (#863)
+
+## 1.87.1 - 2023-10-26
+
+- fix(surveys): clearer user property names (#861)
+
+## 1.87.0 - 2023-10-26
+
+- feat(surveys): Make selector targeting work, add user props (#858)
+
+## 1.86.0 - 2023-10-26
+
+- feat: allow backend to specify a custom analytics endpoint (#831)
+
+## 1.85.4 - 2023-10-26
+
+- fix: checkout every X minutes (#860)
+- feat: lazily load exception autocapture (#856)
+
+## 1.85.3 - 2023-10-25
+
+- feat: Toolbar loading from state faster (#849)
+
+## 1.85.2 - 2023-10-24
+
+- fix(surveys): cancel listener should be on all questions (#854)
+- Fix changelog.md (#853)
+- fix: eslint does not fail build (#852)
+
+## 1.85.1 - 2023-10-24
+
+- fix: Disable the string reduction code until we can battle test it more. (#851)
+
+## 1.85.0 - 2023-10-24
+
+- feat: allow sampling based on decide response (#839)
+
+## 1.84.4 - 2023-10-24
+
+- log when browser offline (#850)
+- chore: type checking in one place makes bundle smaller (#843)
+
+## 1.84.3 - 2023-10-23
+
+- fix: full snapshot every 10 minutes (#847)
+- fix: really fix subdomain check to satisfy codeql (#845)
+
 ## 1.84.2 - 2023-10-23
 
 - fix: heroku subdomain check (#842)

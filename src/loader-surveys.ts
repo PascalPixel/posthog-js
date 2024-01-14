@@ -1,7 +1,9 @@
 import { generateSurveys } from './extensions/surveys'
 
-const win: Window & typeof globalThis = typeof window !== 'undefined' ? window : ({} as typeof window)
+import { window } from './utils/globals'
 
-;(win as any).extendPostHogWithSurveys = generateSurveys
+if (window) {
+    ;(window as any).extendPostHogWithSurveys = generateSurveys
+}
 
 export default generateSurveys

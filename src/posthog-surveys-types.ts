@@ -9,18 +9,25 @@ export interface SurveyAppearance {
     backgroundColor?: string
     submitButtonColor?: string
     textColor?: string
+    // deprecate submit button text eventually
     submitButtonText?: string
     descriptionTextColor?: string
     ratingButtonColor?: string
     ratingButtonActiveColor?: string
     ratingButtonHoverColor?: string
     whiteLabel?: boolean
+    autoDisappear?: boolean
     displayThankYouMessage?: boolean
     thankYouMessageHeader?: string
     thankYouMessageDescription?: string
     borderColor?: string
     position?: 'left' | 'right' | 'center'
     placeholder?: string
+    // widget options
+    widgetType?: 'button' | 'tab' | 'selector'
+    widgetSelector?: string
+    widgetLabel?: string
+    widgetColor?: string
     // questionable: Not in frontend/src/types.ts -> SurveyAppearance, but used in site app
     maxWidth?: string
     zIndex?: string
@@ -28,10 +35,8 @@ export interface SurveyAppearance {
 
 export enum SurveyType {
     Popover = 'popover',
-    Button = 'button',
-    FullScreen = 'full_screen',
-    Email = 'email',
     API = 'api',
+    Widget = 'widget',
 }
 
 export type SurveyQuestion = BasicSurveyQuestion | LinkSurveyQuestion | RatingSurveyQuestion | MultipleSurveyQuestion
@@ -40,6 +45,7 @@ interface SurveyQuestionBase {
     question: string
     description?: string | null
     optional?: boolean
+    buttonText?: string
 }
 
 export interface BasicSurveyQuestion extends SurveyQuestionBase {
@@ -62,6 +68,7 @@ export interface RatingSurveyQuestion extends SurveyQuestionBase {
 export interface MultipleSurveyQuestion extends SurveyQuestionBase {
     type: SurveyQuestionType.SingleChoice | SurveyQuestionType.MultipleChoice
     choices: string[]
+    hasOpenChoice?: boolean
 }
 
 export enum SurveyQuestionType {

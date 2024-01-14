@@ -1,18 +1,103 @@
-import { _extend, logger } from './utils'
+import { _extend } from './utils'
 import { PersistentStore, Properties } from './types'
-import { DISTINCT_ID, SESSION_ID } from './constants'
+import { DISTINCT_ID, SESSION_ID, SESSION_RECORDING_IS_SAMPLED } from './constants'
+
+import { _isNull, _isUndefined } from './utils/type-utils'
+import { logger } from './utils/logger'
+import { window, document } from './utils/globals'
+import { uuidv7 } from './uuidv7'
+
+const Y1970 = 'Thu, 01 Jan 1970 00:00:00 GMT'
+// we store the discovered subdomain in memory because it might be read multiple times
+let firstNonPublicSubDomain = ''
+
+// helper to allow tests to clear this "cache"
+export const resetSubDomainCache = () => {
+    firstNonPublicSubDomain = ''
+}
+
+/**
+ * Browsers don't offer a way to check if something is a public suffix
+ * e.g. `.com.au`, `.io`, `.org.uk`
+ *
+ * But they do reject cookies set on public suffixes
+ * Setting a cookie on `.co.uk` would mean it was sent for every `.co.uk` site visited
+ *
+ * So, we can use this to check if a domain is a public suffix
+ * by trying to set a cookie on a subdomain of the provided hostname
+ * until the browser accepts it
+ *
+ * inspired by https://github.com/AngusFu/browser-root-domain
+ */
+export function seekFirstNonPublicSubDomain(hostname: string, cookieJar = document): string {
+    if (firstNonPublicSubDomain) {
+        return firstNonPublicSubDomain
+    }
+
+    if (!cookieJar) {
+        return ''
+    }
+    if (['localhost', '127.0.0.1'].includes(hostname)) return ''
+
+    const list = hostname.split('.')
+    let len = Math.min(list.length, 8) // paranoia - we know this number should be small
+    const key = 'dmn_chk_' + uuidv7()
+    const R = new RegExp('(^|;)\\s*' + key + '=1')
+
+    while (!firstNonPublicSubDomain && len--) {
+        const candidate = list.slice(len).join('.')
+        const candidateCookieValue = key + '=1;domain=.' + candidate
+
+        // try to set cookie
+        cookieJar.cookie = candidateCookieValue
+
+        if (R.test(cookieJar.cookie)) {
+            // the cookie was accepted by the browser, remove the test cookie
+            cookieJar.cookie = candidateCookieValue + ';expires=' + Y1970
+            firstNonPublicSubDomain = candidate
+        }
+    }
+
+    return firstNonPublicSubDomain
+}
 
 const DOMAIN_MATCH_REGEX = /[a-z0-9][a-z0-9-]+\.[a-z]{2,}$/i
+const originalCookieDomainFn = (hostname: string): string => {
+    const matches = hostname.match(DOMAIN_MATCH_REGEX)
+    return matches ? matches[0] : ''
+}
+
+export function chooseCookieDomain(hostname: string, cross_subdomain: boolean | undefined): string {
+    if (cross_subdomain) {
+        // NOTE: Could we use this for cross domain tracking?
+        let matchedSubDomain = seekFirstNonPublicSubDomain(hostname)
+
+        if (!matchedSubDomain) {
+            const originalMatch = originalCookieDomainFn(hostname)
+            if (originalMatch !== matchedSubDomain) {
+                logger.info('Warning: cookie subdomain discovery mismatch', originalMatch, matchedSubDomain)
+            }
+            matchedSubDomain = originalMatch
+        }
+
+        return matchedSubDomain ? '; domain=.' + matchedSubDomain : ''
+    }
+    return ''
+}
 
 // Methods partially borrowed from quirksmode.org/js/cookies.html
 export const cookieStore: PersistentStore = {
-    is_supported: () => true,
+    is_supported: () => !!document,
 
     error: function (msg) {
         logger.error('cookieStore error: ' + msg)
     },
 
     get: function (name) {
+        if (!document) {
+            return
+        }
+
         try {
             const nameEQ = name + '='
             const ca = document.cookie.split(';').filter((x) => x.length)
@@ -40,18 +125,14 @@ export const cookieStore: PersistentStore = {
     },
 
     set: function (name, value, days, cross_subdomain, is_secure) {
+        if (!document) {
+            return
+        }
         try {
-            let cdomain = '',
-                expires = '',
+            let expires = '',
                 secure = ''
 
-            if (cross_subdomain) {
-                // NOTE: Could we use this for cross domain tracking?
-                const matches = document.location.hostname.match(DOMAIN_MATCH_REGEX),
-                    domain = matches ? matches[0] : ''
-
-                cdomain = domain ? '; domain=.' + domain : ''
-            }
+            const cdomain = chooseCookieDomain(document.location.hostname, cross_subdomain)
 
             if (days) {
                 const date = new Date()
@@ -71,6 +152,12 @@ export const cookieStore: PersistentStore = {
                 '; SameSite=Lax; path=/' +
                 cdomain +
                 secure
+
+            // 4096 bytes is the size at which some browsers (e.g. firefox) will not store a cookie, warn slightly before that
+            if (new_cookie_val.length > 4096 * 0.9) {
+                logger.warn('cookieStore warning: large cookie, len=' + new_cookie_val.length)
+            }
+
             document.cookie = new_cookie_val
             return new_cookie_val
         } catch (err) {
@@ -91,12 +178,12 @@ let _localStorage_supported: boolean | null = null
 
 export const localStore: PersistentStore = {
     is_supported: function () {
-        if (_localStorage_supported !== null) {
+        if (!_isNull(_localStorage_supported)) {
             return _localStorage_supported
         }
 
         let supported = true
-        if (typeof window !== 'undefined') {
+        if (!_isUndefined(window)) {
             try {
                 const key = '__mplssupport__',
                     val = 'xyz'
@@ -125,7 +212,7 @@ export const localStore: PersistentStore = {
 
     get: function (name) {
         try {
-            return window.localStorage.getItem(name)
+            return window?.localStorage.getItem(name)
         } catch (err) {
             localStore.error(err)
         }
@@ -143,7 +230,7 @@ export const localStore: PersistentStore = {
 
     set: function (name, value) {
         try {
-            window.localStorage.setItem(name, JSON.stringify(value))
+            window?.localStorage.setItem(name, JSON.stringify(value))
         } catch (err) {
             localStore.error(err)
         }
@@ -151,7 +238,7 @@ export const localStore: PersistentStore = {
 
     remove: function (name) {
         try {
-            window.localStorage.removeItem(name)
+            window?.localStorage.removeItem(name)
         } catch (err) {
             localStore.error(err)
         }
@@ -161,7 +248,7 @@ export const localStore: PersistentStore = {
 // Use localstorage for most data but still use cookie for COOKIE_PERSISTED_PROPERTIES
 // This solves issues with cookies having too much data in them causing headers too large
 // Also makes sure we don't have to send a ton of data to the server
-const COOKIE_PERSISTED_PROPERTIES = [DISTINCT_ID, SESSION_ID]
+const COOKIE_PERSISTED_PROPERTIES = [DISTINCT_ID, SESSION_ID, SESSION_RECORDING_IS_SAMPLED]
 
 export const localPlusCookieStore: PersistentStore = {
     ...localStore,
@@ -201,7 +288,7 @@ export const localPlusCookieStore: PersistentStore = {
 
     remove: function (name, cross_subdomain) {
         try {
-            window.localStorage.removeItem(name)
+            window?.localStorage.removeItem(name)
             cookieStore.remove(name, cross_subdomain)
         } catch (err) {
             localStore.error(err)
@@ -245,11 +332,11 @@ export const resetSessionStorageSupported = () => {
 // Storage that only lasts the length of a tab/window. Survives page refreshes
 export const sessionStore: PersistentStore = {
     is_supported: function () {
-        if (sessionStorageSupported !== null) {
+        if (!_isNull(sessionStorageSupported)) {
             return sessionStorageSupported
         }
         sessionStorageSupported = true
-        if (typeof window !== 'undefined') {
+        if (!_isUndefined(window)) {
             try {
                 const key = '__support__',
                     val = 'xyz'
@@ -273,7 +360,7 @@ export const sessionStore: PersistentStore = {
 
     get: function (name) {
         try {
-            return window.sessionStorage.getItem(name)
+            return window?.sessionStorage.getItem(name)
         } catch (err) {
             sessionStore.error(err)
         }
@@ -291,7 +378,7 @@ export const sessionStore: PersistentStore = {
 
     set: function (name, value) {
         try {
-            window.sessionStorage.setItem(name, JSON.stringify(value))
+            window?.sessionStorage.setItem(name, JSON.stringify(value))
         } catch (err) {
             sessionStore.error(err)
         }
@@ -299,7 +386,7 @@ export const sessionStore: PersistentStore = {
 
     remove: function (name) {
         try {
-            window.sessionStorage.removeItem(name)
+            window?.sessionStorage.removeItem(name)
         } catch (err) {
             sessionStore.error(err)
         }

@@ -11,10 +11,14 @@
  * These functions are used internally by the SDK and are not intended to be publicly exposed.
  */
 
-import { _each, _includes, _isNumber, _isString, logger, window } from './utils'
+import { _each, _includes } from './utils'
+import { window } from './utils/globals'
 import { cookieStore, localStore, localPlusCookieStore } from './storage'
 import { GDPROptions, PersistentStore } from './types'
 import { PostHog } from './posthog-core'
+
+import { _isNumber, _isString } from './utils/type-utils'
+import { logger } from './utils/logger'
 
 /**
  * A function used to capture a PostHog event (e.g. PostHogLib.capture)
@@ -154,11 +158,11 @@ function _getStorageValue(token: string, options: GDPROptions) {
 function _hasDoNotTrackFlagOn(options: GDPROptions) {
     if (options && options.respectDnt) {
         const win = (options && options.window) || window
-        const nav = win['navigator'] || {}
+        const nav = win?.navigator
         let hasDntOn = false
         _each(
             [
-                nav['doNotTrack'], // standard
+                nav?.doNotTrack, // standard
                 (nav as any)['msDoNotTrack'],
                 (win as any)['doNotTrack'],
             ],

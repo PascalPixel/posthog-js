@@ -31,6 +31,7 @@ describe('Decide', () => {
         get_property: (key) => given.posthog.persistence.props[key],
         capture: jest.fn(),
         _addCaptureHook: jest.fn(),
+        _afterDecideResponse: jest.fn(),
         _prepare_callback: jest.fn().mockImplementation((callback) => callback),
         get_distinct_id: jest.fn().mockImplementation(() => 'distinctid'),
         _send_request: jest
@@ -154,31 +155,8 @@ describe('Decide', () => {
             expect(given.posthog.sessionRecording.afterDecideResponse).toHaveBeenCalledWith(given.decideResponse)
             expect(given.posthog.toolbar.afterDecideResponse).toHaveBeenCalledWith(given.decideResponse)
             expect(given.posthog.featureFlags.receivedFeatureFlags).toHaveBeenCalledWith(given.decideResponse)
+            expect(given.posthog._afterDecideResponse).toHaveBeenCalledWith(given.decideResponse)
             expect(autocapture.afterDecideResponse).toHaveBeenCalledWith(given.decideResponse, given.posthog)
-        })
-
-        it('enables compression from decide response', () => {
-            given('decideResponse', () => ({ supportedCompression: ['gzip', 'lz64'] }))
-            given.subject()
-
-            expect(given.posthog.compression['gzip']).toBe(true)
-            expect(given.posthog.compression['lz64']).toBe(true)
-        })
-
-        it('enables compression from decide response when only one received', () => {
-            given('decideResponse', () => ({ supportedCompression: ['lz64'] }))
-            given.subject()
-
-            expect(given.posthog.compression).not.toHaveProperty('gzip')
-            expect(given.posthog.compression['lz64']).toBe(true)
-        })
-
-        it('does not enable compression from decide response if compression is disabled', () => {
-            given('config', () => ({ disable_compression: true, persistence: 'memory' }))
-            given('decideResponse', () => ({ supportedCompression: ['gzip', 'lz64'] }))
-            given.subject()
-
-            expect(given.posthog.compression).toEqual({})
         })
 
         it('Make sure receivedFeatureFlags is not called if the decide response fails', () => {
@@ -192,7 +170,7 @@ describe('Decide', () => {
             expect(console.error).toHaveBeenCalledWith('[PostHog.js]', 'Failed to fetch feature flags from PostHog.')
         })
 
-        it('Make sure receivedFeatureFlags is called with empty if advanced_disable_feature_flags_on_first_load is set', () => {
+        it('Make sure receivedFeatureFlags is not called if advanced_disable_feature_flags_on_first_load is set', () => {
             given('decideResponse', () => ({
                 enable_collect_everything: true,
                 featureFlags: { 'test-flag': true },
@@ -202,6 +180,27 @@ describe('Decide', () => {
                 token: 'testtoken',
                 persistence: 'memory',
                 advanced_disable_feature_flags_on_first_load: true,
+            }))
+
+            given.subject()
+
+            expect(autocapture.afterDecideResponse).toHaveBeenCalledWith(given.decideResponse, given.posthog)
+            expect(given.posthog.sessionRecording.afterDecideResponse).toHaveBeenCalledWith(given.decideResponse)
+            expect(given.posthog.toolbar.afterDecideResponse).toHaveBeenCalledWith(given.decideResponse)
+
+            expect(given.posthog.featureFlags.receivedFeatureFlags).not.toHaveBeenCalled()
+        })
+
+        it('Make sure receivedFeatureFlags is not called if advanced_disable_feature_flags is set', () => {
+            given('decideResponse', () => ({
+                enable_collect_everything: true,
+                featureFlags: { 'test-flag': true },
+            }))
+            given('config', () => ({
+                api_host: 'https://test.com',
+                token: 'testtoken',
+                persistence: 'memory',
+                advanced_disable_feature_flags: true,
             }))
 
             given.subject()

@@ -1,4 +1,4 @@
-import { _base64Encode, _entries, _extend, logger } from './utils'
+import { _base64Encode, _entries, _extend } from './utils'
 import { PostHog } from './posthog-core'
 import {
     DecideResponse,
@@ -18,6 +18,9 @@ import {
     STORED_PERSON_PROPERTIES_KEY,
     FLAG_CALL_REPORTED,
 } from './constants'
+
+import { _isArray } from './utils/type-utils'
+import { logger } from './utils/logger'
 
 const PERSISTENCE_ACTIVE_FEATURE_FLAGS = '$active_feature_flags'
 const PERSISTENCE_OVERRIDE_FEATURE_FLAGS = '$override_feature_flags'
@@ -43,7 +46,7 @@ export const parseFeatureFlagDecideResponse = (
     const flagPayloads = response['featureFlagPayloads']
     if (flags) {
         // using the v1 api
-        if (Array.isArray(flags)) {
+        if (_isArray(flags)) {
             const $enabled_feature_flags: Record<string, boolean> = {}
             if (flags) {
                 for (let i = 0; i < flags.length; i++) {
@@ -167,6 +170,10 @@ export class PostHogFeatureFlags {
     }
 
     _reloadFeatureFlagsRequest(): void {
+        if (this.instance.config.advanced_disable_feature_flags) {
+            return
+        }
+
         this.setReloadingPaused(true)
         const token = this.instance.config.token
         const personProperties = this.instance.get_property(STORED_PERSON_PROPERTIES_KEY)
@@ -220,7 +227,7 @@ export class PostHogFeatureFlags {
 
         if (options.send_event || !('send_event' in options)) {
             if (!(key in flagCallReported) || !flagCallReported[key].includes(flagReportValue)) {
-                if (Array.isArray(flagCallReported[key])) {
+                if (_isArray(flagCallReported[key])) {
                     flagCallReported[key].push(flagReportValue)
                 } else {
                     flagCallReported[key] = [flagReportValue]
@@ -288,14 +295,14 @@ export class PostHogFeatureFlags {
      */
     override(flags: boolean | string[] | Record<string, string | boolean>): void {
         if (!this.instance.__loaded || !this.instance.persistence) {
-            return logger.unintializedWarning('posthog.feature_flags.override')
+            return logger.uninitializedWarning('posthog.feature_flags.override')
         }
 
         this._override_warning = false
 
         if (flags === false) {
             this.instance.persistence.unregister(PERSISTENCE_OVERRIDE_FEATURE_FLAGS)
-        } else if (Array.isArray(flags)) {
+        } else if (_isArray(flags)) {
             const flagsObj: Record<string, string | boolean> = {}
             for (let i = 0; i < flags.length; i++) {
                 flagsObj[flags[i]] = true
